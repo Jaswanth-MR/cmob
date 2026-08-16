@@ -1,14 +1,190 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"><meta name="theme-color" content="#0b0f17"><meta name="description" content="Project Phoenix - Offline Emergency Decision Support System with disaster survival guidance."><title>Project Phoenix - Offline Emergency Assistant</title><link rel="stylesheet" href="style.css"><link rel="manifest" href="manifest.json">
-</head><body>
-<div id="strobeOverlay" class="strobe-overlay"></div><div class="app-container">
-<header class="app-header"><div class="brand"><div class="brand-icon">🔥</div><div><div class="brand-title" data-i18n="appTitle">PHOENIX EMERGENCY ASSISTANT</div><div class="brand-subtitle" data-i18n="appSubtitle">Offline Decision Support • Step-by-Step Guidance</div></div></div><div class="controls-bar"><select id="langSelect" class="lang-select"><option value="en">🌐 English</option><option value="es">🌐 Español</option><option value="fr">🌐 Français</option><option value="hi">🌐 हिन्दी</option><option value="de">🌐 Deutsch</option><option value="zh">🌐 中文</option></select><label class="toggle-label"><input type="checkbox" id="contrastToggle"><span data-i18n="highContrast">Contrast</span></label><label class="toggle-label"><input type="checkbox" id="speechToggle" checked><span data-i18n="speechVoice">Voice</span></label></div></header>
-<main><section id="homeSection"><div class="search-box-container"><div class="search-input-wrapper"><input type="text" id="searchInput" class="search-input" data-i18n="searchPlaceholder" placeholder="Search emergency or describe situation (e.g. 'collapsed not breathing', 'choking baby')..."><button id="searchBtn" class="btn-search" data-i18n="searchBtn">Analyze</button></div><div id="analyzerNotice"></div></div><div class="section-heading" data-i18n="emergencyGridTitle">⚡ Direct Action Protocols</div><div id="emergencyGrid" class="emergency-grid"></div><div class="utility-grid"><div class="widget-card"><div class="widget-title" data-i18n="locationTitle">📍 Your Location & GPS</div><div id="latLongText" style="font-size:14px;font-weight:bold;margin-bottom:4px;">Acquiring GPS coordinates...</div><div id="accuracyText" style="font-size:12px;color:var(--text-secondary);margin-bottom:10px;">Checking accuracy...</div><button id="btnCopyLocation" class="btn-action-sm" data-i18n="copyLocation">📋 Copy Location for Rescuers</button></div><div class="widget-card"><div class="widget-title" data-i18n="iceContacts">📱 ICE Emergency Contacts</div><div id="iceList"></div><button id="btnAddIce" class="btn-action-sm">+ Add ICE Contact</button></div></div></section>
-<section id="stepSection" style="display:none;"><div class="step-container"><div class="step-header-bar"><button id="btnBack" class="btn-nav-mini">← Back</button><div id="protocolTitle" class="protocol-badge">Protocol Name</div><button id="btnHome" class="btn-nav-mini">🏠 Home</button></div><div class="step-card"><div id="stepTitle" class="step-title">Step Title</div><div id="stepInstruction" class="step-instruction">Step instruction content...</div><div id="stepDetail" class="step-detail">Additional guidance...</div><div id="stepWarning" class="step-warning">Caution warning...</div><div id="metronomeBox" class="metronome-box" style="display:none;"><div id="pulseIndicator" class="pulse-indicator">🫀</div><div class="metronome-info"><div style="font-size:12px;text-transform:uppercase;color:var(--text-secondary);">CPR Rhythm Target (110 BPM)</div><div id="compressionCounter" class="counter-text">0 / 30</div></div><button id="btnToggleMetronome" class="btn-metronome" data-i18n="startMetronome">Start Rhythm</button></div><div id="diagramContainer" class="diagram-box"></div><div class="search-box-container" style="margin-top:20px;margin-bottom:16px;"><div class="search-input-wrapper"><input type="text" id="stepSearchInput" class="search-input" placeholder="Type what's happening or answer here..."><button id="stepSearchBtn" class="btn-search">Go</button></div><div id="stepAnalyzerNotice"></div></div><div id="optionsContainer" class="options-grid"></div></div></div></section></main>
-<div id="sosModal" class="modal-overlay"><div class="modal-box"><div class="modal-title" data-i18n="sosBeacon">🚨 Emergency SOS Beacon</div><p style="font-size:14px;color:var(--text-secondary);margin-bottom:16px;">Use audio siren and visual screen strobe to signal rescuers in dark or outdoor environments.</p><div class="modal-buttons"><button id="btnToggleSiren" class="btn-sos-toggle">🔊 Play Loud Siren</button><button id="btnToggleStrobe" class="btn-sos-toggle">🚨 Start Screen Strobe</button></div><button id="btnCloseSos" class="btn-action-sm" style="width:100%;padding:12px;">Close SOS Window</button></div></div>
-<footer class="bottom-emergency-bar"><select id="regionSelect" class="lang-select" style="background:#111;"><option value="us">🇺🇸 USA (911)</option><option value="eu">🇪🇺 EU / Global (112)</option><option value="uk">🇬🇧 UK (999)</option><option value="in">🇮🇳 India (108)</option><option value="au">🇦🇺 Australia (000)</option><option value="ca">🇨🇦 Canada (911)</option></select><a id="btnCallEmergency" href="tel:911" class="btn-call-emergency">🚨 Call Emergency (911)</a><button id="btnSosModal" class="btn-sos">🆘 SOS</button></footer></div>
-<script src="protocols.js"></script><script src="analyzer.js"></script><script src="app.js"></script><script src="survival-guide.js"></script>
-<script>if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').then(reg=>console.log('Project Phoenix Service Worker Registered')).catch(err=>console.log('Service Worker Failed:',err));});}</script>
-</body></html>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#0b0f17">
+  <meta name="description" content="Project Phoenix - Offline Emergency Decision Support System. Instant, step-by-step first response guidance for medical emergencies.">
+  <title>Project Phoenix - Offline Emergency Assistant</title>
+  
+  <link rel="stylesheet" href="style.css">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+
+  <!-- Strobe Flash Overlay -->
+  <div id="strobeOverlay" class="strobe-overlay"></div>
+
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">🔥</div>
+        <div>
+          <div class="brand-title" data-i18n="appTitle">PHOENIX EMERGENCY ASSISTANT</div>
+          <div class="brand-subtitle" data-i18n="appSubtitle">Offline Decision Support • Step-by-Step Guidance</div>
+        </div>
+      </div>
+      <div class="controls-bar">
+        <select id="langSelect" class="lang-select">
+          <option value="en">🌐 English</option>
+          <option value="es">🌐 Español</option>
+          <option value="fr">🌐 Français</option>
+          <option value="hi">🌐 हिन्दी</option>
+          <option value="de">🌐 Deutsch</option>
+          <option value="zh">🌐 中文</option>
+        </select>
+        <label class="toggle-label">
+          <input type="checkbox" id="contrastToggle">
+          <span data-i18n="highContrast">Contrast</span>
+        </label>
+        <label class="toggle-label">
+          <input type="checkbox" id="speechToggle" checked>
+          <span data-i18n="speechVoice">Voice</span>
+        </label>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main>
+
+      <!-- HOME VIEW -->
+      <section id="homeSection">
+        
+        <!-- Natural Language Situation Analyzer -->
+        <div class="search-box-container">
+          <div class="search-input-wrapper">
+            <input type="text" id="searchInput" class="search-input" data-i18n="searchPlaceholder" placeholder="Search emergency or describe situation (e.g. 'collapsed not breathing', 'choking baby')...">
+            <button id="searchBtn" class="btn-search" data-i18n="searchBtn">Analyze</button>
+          </div>
+          <div id="analyzerNotice"></div>
+        </div>
+
+        <!-- Direct Action Triage Protocols Grid -->
+        <div class="section-heading" data-i18n="emergencyGridTitle">
+          ⚡ Direct Action Protocols
+        </div>
+        <div id="emergencyGrid" class="emergency-grid"></div>
+
+        <!-- Offline Utility Widgets -->
+        <div class="utility-grid">
+          
+          <!-- Location & GPS Widget -->
+          <div class="widget-card">
+            <div class="widget-title" data-i18n="locationTitle">📍 Your Location & GPS</div>
+            <div id="latLongText" style="font-size: 14px; font-weight: bold; margin-bottom: 4px;">Acquiring GPS coordinates...</div>
+            <div id="accuracyText" style="font-size: 12px; color: var(--text-secondary); margin-bottom: 10px;">Checking accuracy...</div>
+            <button id="btnCopyLocation" class="btn-action-sm" data-i18n="copyLocation">📋 Copy Location for Rescuers</button>
+          </div>
+
+          <!-- ICE Emergency Contacts Manager -->
+          <div class="widget-card">
+            <div class="widget-title" data-i18n="iceContacts">📱 ICE Emergency Contacts</div>
+            <div id="iceList"></div>
+            <button id="btnAddIce" class="btn-action-sm" style="margin-top: 10px;">+ Add ICE Contact</button>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- STEP / DECISION ENGINE VIEW -->
+      <section id="stepSection" style="display: none;">
+        
+        <div class="step-container">
+          
+          <div class="step-header-bar">
+            <button id="btnBack" class="btn-nav-mini">← Back</button>
+            <div id="protocolTitle" class="protocol-badge">Protocol Name</div>
+            <button id="btnHome" class="btn-nav-mini">🏠 Home</button>
+          </div>
+
+          <div class="step-card">
+            <div id="stepTitle" class="step-title">Step Title</div>
+            <div id="stepInstruction" class="step-instruction">Step instruction content...</div>
+            <div id="stepDetail" class="step-detail">Additional guidance...</div>
+            <div id="stepWarning" class="step-warning">Caution warning...</div>
+
+            <!-- CPR Metronome Tool -->
+            <div id="metronomeBox" class="metronome-box" style="display: none;">
+              <div id="pulseIndicator" class="pulse-indicator">🫀</div>
+              <div class="metronome-info">
+                <div style="font-size: 12px; text-transform: uppercase; color: var(--text-secondary);">CPR Rhythm Target (110 BPM)</div>
+                <div id="compressionCounter" class="counter-text">0 / 30</div>
+              </div>
+              <button id="btnToggleMetronome" class="btn-metronome" data-i18n="startMetronome">Start Rhythm</button>
+            </div>
+
+            <!-- SVG Visual Diagram -->
+            <div id="diagramContainer" class="diagram-box"></div>
+
+            <!-- Step Free-Text Input -->
+            <div class="search-box-container" style="margin-top: 20px; margin-bottom: 16px;">
+              <div class="search-input-wrapper">
+                <input type="text" id="stepSearchInput" class="search-input" placeholder="Type what's happening or answer here...">
+                <button id="stepSearchBtn" class="btn-search">Go</button>
+              </div>
+              <div id="stepAnalyzerNotice"></div>
+            </div>
+
+            <!-- Branching Action Buttons -->
+            <div id="optionsContainer" class="options-grid"></div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+    </main>
+
+    <!-- SOS Siren & Strobe Modal -->
+    <div id="sosModal" class="modal-overlay">
+      <div class="modal-box">
+        <div class="modal-title" data-i18n="sosBeacon">🚨 Emergency SOS Beacon</div>
+        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 16px;">
+          Use audio siren and visual screen strobe to signal rescuers in dark or outdoor environments.
+        </p>
+        <div class="modal-buttons">
+          <button id="btnToggleSiren" class="btn-sos-toggle">🔊 Play Loud Siren</button>
+          <button id="btnToggleStrobe" class="btn-sos-toggle">🚨 Start Screen Strobe</button>
+        </div>
+        <button id="btnCloseSos" class="btn-action-sm" style="width: 100%; padding: 12px;">Close SOS Window</button>
+      </div>
+    </div>
+
+    <!-- Fixed Bottom Emergency Toolbar -->
+    <footer class="bottom-emergency-bar">
+      <select id="regionSelect" class="lang-select" style="background: #111;">
+        <option value="us">🇺🇸 USA (911)</option>
+        <option value="eu">🇪🇺 EU / Global (112)</option>
+        <option value="uk">🇬🇧 UK (999)</option>
+        <option value="in">🇮🇳 India (108)</option>
+        <option value="au">🇦🇺 Australia (000)</option>
+        <option value="ca">🇨🇦 Canada (911)</option>
+      </select>
+      <a id="btnCallEmergency" href="tel:911" class="btn-call-emergency">🚨 Call Emergency (911)</a>
+      <button id="btnSosModal" class="btn-sos">🆘 SOS</button>
+    </footer>
+
+  </div>
+
+  <!-- Application Scripts -->
+  <script src="protocols.js"></script>
+  <script src="analyzer.js"></script>
+  <script src="app.js"></script>
+  <script src="survival-guide.js"></script>
+
+  <!-- Service Worker Registration -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js')
+          .then(reg => console.log('Project Phoenix Service Worker Registered'))
+          .catch(err => console.log('Service Worker Failed:', err));
+      });
+    }
+  </script>
+</body>
+</html>
