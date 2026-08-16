@@ -62,16 +62,127 @@
     next: ["Identify the safest nearby shelter or evacuation route.", "Keep family communication plans simple and agreed in advance.", "Continue monitoring official emergency information." ]
   };
 
-  const normalize = text => (text || "").toLowerCase();
+  // Keyword list used for both exact/partial matching and typo-tolerant fuzzy matching.
+  // Each entry maps a searchable phrase -> the guide key it should resolve to.
+  const KEYWORDS = [
+    { word: "earthquake", key: "earthquake" },
+    { word: "earth quake", key: "earthquake" },
+    { word: "tremor", key: "earthquake" },
+    { word: "shaking", key: "earthquake" },
+    { word: "seismic", key: "earthquake" },
+    { word: "flood", key: "flood" },
+    { word: "flooding", key: "flood" },
+    { word: "water rising", key: "flood" },
+    { word: "heavy rain", key: "flood" },
+    { word: "cyclone", key: "cyclone" },
+    { word: "hurricane", key: "cyclone" },
+    { word: "typhoon", key: "cyclone" },
+    { word: "severe storm", key: "cyclone" },
+    { word: "storm", key: "cyclone" },
+    { word: "wildfire", key: "wildfire" },
+    { word: "forest fire", key: "wildfire" },
+    { word: "bushfire", key: "wildfire" },
+    { word: "fire smoke", key: "wildfire" },
+    { word: "heatwave", key: "heatwave" },
+    { word: "heat wave", key: "heatwave" },
+    { word: "extreme heat", key: "heatwave" },
+    { word: "hot weather", key: "heatwave" }
+  ];
+
+  // Friendly display list for the dropdown (one entry per disaster).
+  const GUIDE_OPTIONS = [
+    { key: "earthquake", label: "🌎 Earthquake" },
+    { key: "flood", label: "🌊 Flood" },
+    { key: "cyclone", label: "🌀 Cyclone / Severe Storm" },
+    { key: "wildfire", label: "🔥 Wildfire" },
+    { key: "heatwave", label: "☀️ Heatwave" }
+  ];
+
+  const normalize = text => (text || "").toLowerCase().trim();
+
+  // Classic Levenshtein edit-distance, used to tolerate typos (e.g. "erthquake").
+  function editDistance(a, b) {
+    const m = a.length, n = b.length;
+    if (!m) return n;
+    if (!n) return m;
+    const dp = Array.from({ length: m + 1 }, (_, i) => [i, ...Array(n).fill(0)]);
+    for (let j = 0; j <= n; j++) dp[0][j] = j;
+    for (let i = 1; i <= m; i++) {
+      for (let j = 1; j <= n; j++) {
+        dp[i][j] = a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+      }
+    }
+    return dp[m][n];
+  }
+
+  // How many typos we tolerate scales gently with word length so short words
+  // ("flood") aren't matched too loosely, while longer words ("earthquake")
+  // can absorb a couple of mistakes.
+  function maxAllowedDistance(len) {
+    if (len <= 4) return 1;
+    if (len <= 7) return 2;
+    return 3;
+  }
+
+  // Finds the best fuzzy match for a query against a single word, checking
+  // both the whole query and its individual tokens (so "the eartquake hit"
+  // still matches "earthquake").
+  function bestDistanceForWord(query, word) {
+    let best = editDistance(query, word);
+    const tokens = query.split(/\s+/).filter(Boolean);
+    for (const token of tokens) {
+      best = Math.min(best, editDistance(token, word));
+    }
+    return best;
+  }
 
   function detectGuide(text) {
     const q = normalize(text);
-    if (/earthquake|earth quake|tremor|shaking|seismic/.test(q)) return GUIDES.earthquake;
-    if (/flood|flooding|water rising|heavy rain/.test(q)) return GUIDES.flood;
-    if (/cyclone|hurricane|typhoon|severe storm|storm/.test(q)) return GUIDES.cyclone;
-    if (/wildfire|forest fire|bushfire|fire smoke/.test(q)) return GUIDES.wildfire;
-    if (/heatwave|heat wave|extreme heat|hot weather/.test(q)) return GUIDES.heatwave;
+    if (!q) return DEFAULT_GUIDE;
+
+    // 1) Exact / substring match first (fast path, handles multi-word phrases).
+    for (const { word, key } of KEYWORDS) {
+      if (q.includes(word)) return GUIDES[key];
+    }
+
+    // 2) Typo-tolerant fuzzy match against each known keyword.
+    let bestKey = null;
+    let bestScore = Infinity;
+    for (const { word, key } of KEYWORDS) {
+      const dist = bestDistanceForWord(q, word);
+      const allowed = maxAllowedDistance(word.length);
+      if (dist <= allowed && dist < bestScore) {
+        bestScore = dist;
+        bestKey = key;
+      }
+    }
+    if (bestKey) return GUIDES[bestKey];
+
     return DEFAULT_GUIDE;
+  }
+
+  // Returns up to `limit` suggested guide options for the live dropdown,
+  // ranked by how closely they match the current text (typo-tolerant).
+  function suggestGuides(text, limit = 5) {
+    const q = normalize(text);
+    if (!q) return GUIDE_OPTIONS;
+
+    const scored = GUIDE_OPTIONS.map(opt => {
+      let best = Infinity;
+      for (const { word, key } of KEYWORDS) {
+        if (key !== opt.key) continue;
+        if (word.includes(q) || q.includes(word)) { best = 0; break; }
+        best = Math.min(best, bestDistanceForWord(q, word));
+      }
+      return { ...opt, score: best };
+    });
+
+    return scored
+      .filter(o => o.score <= maxAllowedDistance(Math.max(q.length, 4)))
+      .sort((a, b) => a.score - b.score)
+      .slice(0, limit);
   }
 
   function section(title, items, numbered = false) {
@@ -118,7 +229,10 @@
           <div><div class="survival-header-title">🧭 SURVIVAL GUIDE</div><div class="survival-header-subtitle">Offline disaster preparedness & response</div></div>
         </div>
         <div class="survival-search">
-          <input id="survivalSearchInput" class="search-input" placeholder="Enter disaster (e.g. flood, earthquake, cyclone)..." aria-label="Disaster type">
+          <div class="survival-search-input-wrap">
+            <input id="survivalSearchInput" class="search-input" placeholder="Enter disaster (e.g. flood, earthquake, cyclone)..." aria-label="Disaster type" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="survivalDropdown">
+            <ul id="survivalDropdown" class="survival-dropdown" role="listbox" hidden></ul>
+          </div>
           <button id="survivalSearchBtn" class="btn-search">Guide</button>
         </div>
         <div id="survivalGuideContent"></div>
@@ -139,13 +253,82 @@
       window.scrollTo({ top: 0, behavior: "smooth" });
     });
 
+    const input = document.getElementById("survivalSearchInput");
+    const dropdown = document.getElementById("survivalDropdown");
+    let activeIndex = -1;
+
+    const closeDropdown = () => {
+      dropdown.hidden = true;
+      dropdown.innerHTML = "";
+      input.setAttribute("aria-expanded", "false");
+      activeIndex = -1;
+    };
+
+    const openDropdown = (options) => {
+      if (!options.length) { closeDropdown(); return; }
+      dropdown.innerHTML = options.map((opt, i) =>
+        `<li role="option" data-key="${opt.key}" class="survival-dropdown-item${i === activeIndex ? " active" : ""}">${opt.label}</li>`
+      ).join("");
+      dropdown.hidden = false;
+      input.setAttribute("aria-expanded", "true");
+    };
+
+    const selectGuide = (key, label) => {
+      input.value = label.replace(/^\S+\s/, ""); // strip leading emoji
+      closeDropdown();
+      renderGuide(GUIDES[key] || DEFAULT_GUIDE, input.value);
+    };
+
     const run = () => {
-      const input = document.getElementById("survivalSearchInput");
       const query = input.value.trim();
+      closeDropdown();
       renderGuide(detectGuide(query), query || "general preparedness");
     };
+
+    input.addEventListener("input", () => {
+      activeIndex = -1;
+      openDropdown(suggestGuides(input.value));
+    });
+
+    input.addEventListener("focus", () => {
+      openDropdown(suggestGuides(input.value));
+    });
+
+    input.addEventListener("keydown", e => {
+      const items = dropdown.querySelectorAll(".survival-dropdown-item");
+      if (e.key === "ArrowDown" && items.length) {
+        e.preventDefault();
+        activeIndex = (activeIndex + 1) % items.length;
+        items.forEach((it, i) => it.classList.toggle("active", i === activeIndex));
+      } else if (e.key === "ArrowUp" && items.length) {
+        e.preventDefault();
+        activeIndex = (activeIndex - 1 + items.length) % items.length;
+        items.forEach((it, i) => it.classList.toggle("active", i === activeIndex));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (activeIndex >= 0 && items[activeIndex]) {
+          const key = items[activeIndex].getAttribute("data-key");
+          selectGuide(key, items[activeIndex].textContent);
+        } else {
+          run();
+        }
+      } else if (e.key === "Escape") {
+        closeDropdown();
+      }
+    });
+
+    dropdown.addEventListener("mousedown", e => {
+      const item = e.target.closest(".survival-dropdown-item");
+      if (!item) return;
+      e.preventDefault();
+      selectGuide(item.getAttribute("data-key"), item.textContent);
+    });
+
+    document.addEventListener("click", e => {
+      if (!e.target.closest(".survival-search-input-wrap")) closeDropdown();
+    });
+
     document.getElementById("survivalSearchBtn").addEventListener("click", run);
-    document.getElementById("survivalSearchInput").addEventListener("keypress", e => { if (e.key === "Enter") run(); });
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
